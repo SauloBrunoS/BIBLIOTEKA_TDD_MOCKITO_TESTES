@@ -1,0 +1,70 @@
+package ufc.vv.biblioteka.repository;
+
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.data.rest.core.annotation.RepositoryRestResource;
+
+import ufc.vv.biblioteka.model.Emprestimo;
+import ufc.vv.biblioteka.model.Leitor;
+import ufc.vv.biblioteka.model.Livro;
+
+import java.util.List;
+import java.util.Optional;
+
+@RepositoryRestResource(collectionResourceRel = "emprestimos", path = "emprestimos")
+public interface EmprestimoRepository extends JpaRepository<Emprestimo, Integer> {
+
+        @Query("SELECT e FROM Emprestimo e WHERE " +
+                        "(:search IS NULL OR " +
+                        "TO_CHAR(e.dataEmprestimo, 'DD/MM/YYYY') ILIKE '%' || :search || '%' OR " +
+                        "TO_CHAR(e.dataLimite, 'DD/MM/YYYY') ILIKE '%' || :search || '%' OR " +
+                        "TO_CHAR(e.dataDevolucao, 'DD/MM/YYYY') ILIKE '%' || :search || '%' OR " +
+                        "CAST(e.valorBase AS string) ILIKE '%' || :search || '%' OR " +
+                        "CAST(e.multa AS string) ILIKE '%' || :search || '%' OR " +
+                        "CAST(e.valorTotal AS string) ILIKE '%' || :search || '%' OR " +
+                        "CAST(e.quantidadeRenovacoes AS string) ILIKE '%' || :search || '%' OR " +
+                        "CAST(e.id AS string) ILIKE '%' || :search || '%' OR " +
+                        "(e.reserva IS NOT NULL AND CAST(e.reserva.id AS string) ILIKE '%' || :search || '%') OR " + 
+                        "e.livro.isbn ILIKE '%' || :search || '%') " +
+                        "AND (:devolvido IS NULL OR e.devolvido = :devolvido) " +
+                        "AND (:livroId IS NULL OR e.livro.id = :livroId) " +
+                        "AND e.leitor.id = :leitorId")
+        Page<Emprestimo> findByLeitorIdAndSearch(
+                        @Param("leitorId") int leitorId,
+                        @Param("search") String search,
+                        @Param("livroId") Integer livroId,
+                        @Param("devolvido") Boolean devolvido,
+                        Pageable pageable);
+
+        @Query("SELECT e FROM Emprestimo e WHERE " +
+                        "(:search IS NULL OR " +
+                        "TO_CHAR(e.dataEmprestimo, 'DD/MM/YYYY') ILIKE '%' || :search || '%' OR " +
+                        "TO_CHAR(e.dataLimite, 'DD/MM/YYYY') ILIKE '%' || :search || '%' OR " +
+                        "TO_CHAR(e.dataDevolucao, 'DD/MM/YYYY') ILIKE '%' || :search || '%' OR " +
+                        "CAST(e.valorBase AS string) ILIKE '%' || :search || '%' OR " +
+                        "CAST(e.multa AS string) ILIKE '%' || :search || '%' OR " +
+                        "CAST(e.valorTotal AS string) ILIKE '%' || :search || '%' OR " +
+                        "CAST(e.quantidadeRenovacoes AS string) ILIKE '%' || :search || '%' OR " +
+                        "CAST(e.id AS string) ILIKE '%' || :search || '%' OR " +
+                        "(e.reserva IS NOT NULL AND CAST(e.reserva.id AS string) ILIKE '%' || :search || '%') OR " +
+                        "e.livro.isbn ILIKE '%' || :search || '%') " +
+                        "AND (:devolvido IS NULL OR e.devolvido = :devolvido) " +
+                        "AND (:leitorId IS NULL OR e.leitor.id = :leitorId) " +
+                        "AND e.livro.id = :livroId")
+        Page<Emprestimo> findByLivroIdAndSearch(
+                        @Param("livroId") int livroId,
+                        @Param("search") String search,
+                        @Param("leitorId") Integer leitorId,
+                        @Param("devolvido") Boolean devolvido,
+                        Pageable pageable);
+
+        Optional<Emprestimo> findByLivroAndLeitorAndDevolvidoFalse(Livro livro, Leitor leitor);
+
+        List<Emprestimo> findByDevolvidoFalse();
+
+        int countByDevolvidoFalse();
+
+}
