@@ -8,7 +8,6 @@ import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.voodoodyne.jackson.jsog.JSOGGenerator;
 
 import jakarta.persistence.CascadeType;
-import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -16,76 +15,87 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToOne;
+import jakarta.validation.constraints.NotNull;
+import lombok.AccessLevel;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import ufc.vv.biblioteka.exception.LimiteExcedidoException;
 
 @Entity
 @Data
+@NoArgsConstructor
 @JsonIdentityInfo(generator = JSOGGenerator.class)
-@EqualsAndHashCode(of = "id")
 public class Emprestimo {
 
-    private static final int DATA_LIMITE_PRAZO_DEVOLUCAO_EM_DIAS = 15;
-    private static final int LIMITE_RENOVACOES_SEGUIDAS_DE_UM_MESMO_LIVRO = 3;
+    public static final int DATA_LIMITE_PRAZO_DEVOLUCAO_EM_DIAS = 15;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
     @ManyToOne
-    @JoinColumn(name = "leitor_id", nullable = false)
+    @JoinColumn(name = "leitor_id")
+    @NotNull(message = "Leitor não pode ser nulo")
     private Leitor leitor;
 
     @ManyToOne
-    @JoinColumn(name = "livro_id", nullable = false)
+    @JoinColumn(name = "livro_id")
+    @NotNull(message = "Livro não pode ser nulo")
     private Livro livro;
 
     @DateTimeFormat(pattern = "dd/MM/yyyy")
-    @Column(nullable = false)
+    @Setter(AccessLevel.NONE)
     private LocalDate dataEmprestimo;
 
     @DateTimeFormat(pattern = "dd/MM/yyyy")
-    @Column(nullable = false)
     private LocalDate dataLimite;
 
     @DateTimeFormat(pattern = "dd/MM/yyyy")
+    @Setter(AccessLevel.NONE)
     private LocalDate dataDevolucao;
 
+    @Setter(AccessLevel.NONE)
     private boolean devolvido;
 
-    private double valorBase;
-
+    @Setter(AccessLevel.NONE)
     private int quantidadeRenovacoes;
-
-    private double multa;
-
-    private double valorTotal;
 
     @OneToOne(mappedBy = "emprestimo", cascade = CascadeType.PERSIST)
     private Reserva reserva;
 
-    public void devolverLivro(LocalDate dataDevolucao) {
-        this.dataDevolucao = dataDevolucao;
+    public void devolverLivro() {
+        this.dataDevolucao = LocalDate.now();
         this.devolvido = true;
     }
 
-    public double calcularValorTotal() {
-        this.valorBase = EmprestimoUtils.calcularValorBase(dataEmprestimo, dataDevolucao, dataLimite);
-        this.multa = EmprestimoUtils.calcularMulta(dataDevolucao, dataLimite);
-        this.valorTotal = EmprestimoUtils.calcularValorTotal(valorBase, multa);
-        return valorTotal;
+    public void renovarLivro() {
+        if (quantidadeRenovacoes == GerenciadorRenovacao.LIMITE_RENOVACOES_SEGUIDAS_DE_UM_MESMO_LIVRO)
+            throw new LimiteExcedidoException("Limite de renovações atingido.");
+        this.quantidadeRenovacoes++;
     }
 
-    public void setDataLimite(LocalDate dataAtual) {
-        this.dataLimite = dataAtual.plusDays(DATA_LIMITE_PRAZO_DEVOLUCAO_EM_DIAS);
+    public void marcarDataLimite() {
+        this.dataLimite = LocalDate.now().plusDays(DATA_LIMITE_PRAZO_DEVOLUCAO_EM_DIAS);
     }
 
-    public int getQuantidadeRenovacoesRestantes() {
-        return LIMITE_RENOVACOES_SEGUIDAS_DE_UM_MESMO_LIVRO - quantidadeRenovacoes;
+    public Emprestimo(Leitor leitor, Livro livro) {
+        this.leitor = leitor;
+        this.livro = livro;
+        this.dataEmprestimo = LocalDate.now();
+        this.devolvido = false;
+        this.quantidadeRenovacoes = 0;
+        marcarDataLimite();
     }
 
-    public void renovar() {
-        quantidadeRenovacoes++;
-        setDataLimite(LocalDate.now());
+    public Emprestimo(Leitor leitor, Livro livro, Reserva reserva) {
+        this.leitor = leitor;
+        this.livro = livro;
+        this.dataEmprestimo = LocalDate.now();
+        this.devolvido = false;
+        this.quantidadeRenovacoes = 0;
+        this.reserva = reserva;
+        marcarDataLimite();
     }
+
 }

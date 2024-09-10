@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.validation.Valid;
 import ufc.vv.biblioteka.model.Autor;
 import ufc.vv.biblioteka.model.Livro;
 import ufc.vv.biblioteka.model.Nacionalidade;
@@ -50,45 +51,60 @@ public class AutorController {
     }
 
     @PostMapping
-    public ResponseEntity<?> createAutor(@RequestBody Autor autor) {
+    public ResponseEntity<ResponseObject> createAutor(@Valid @RequestBody Autor autor) {
         try {
             Autor createdAutor = autorService.createAutor(autor);
-            return ResponseEntity.ok(createdAutor);
+            return ResponseEntity.ok(new ResponseObject(HttpStatus.OK, "Autor criado com sucesso", createdAutor));
         } catch (DuplicateKeyException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(new ResponseObject(HttpStatus.CONFLICT, "Autor já existente", e.getMessage()));
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(new ResponseObject(HttpStatus.BAD_REQUEST, "Dados inválidos", e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Erro inesperado ao criar o autor.");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseObject(HttpStatus.INTERNAL_SERVER_ERROR, "Erro inesperado ao criar o autor",
+                            null));
         }
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateAutor(@PathVariable int id, @RequestBody Autor autorDetails) {
+    public ResponseEntity<ResponseObject> updateAutor(@PathVariable int id, @Valid @RequestBody Autor autorDetails) {
         try {
             Autor updatedAutor = autorService.updateAutor(id, autorDetails);
-            return ResponseEntity.ok(updatedAutor);
+            return ResponseEntity.ok(new ResponseObject(HttpStatus.OK, "Autor atualizado com sucesso", updatedAutor));
+        } catch (DuplicateKeyException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(new ResponseObject(HttpStatus.CONFLICT, "Autor já existente", e.getMessage()));
         } catch (EntityNotFoundException e) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ResponseObject(HttpStatus.NOT_FOUND, "Autor não encontrado", null));
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(new ResponseObject(HttpStatus.BAD_REQUEST, "Dados inválidos", e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro inesperado ao atualizar o autor.");
+                    .body(new ResponseObject(HttpStatus.INTERNAL_SERVER_ERROR, "Erro inesperado ao atualizar o autor",
+                            null));
         }
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteAutor(@PathVariable int id) {
+    public ResponseEntity<ResponseObject> deleteAutor(@PathVariable int id) {
         try {
             autorService.deleteAutorById(id);
-            return ResponseEntity.ok().build();
+            return ResponseEntity.ok(new ResponseObject(HttpStatus.OK, "Autor excluído com sucesso", null));
         } catch (EntityNotFoundException e) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ResponseObject(HttpStatus.NOT_FOUND, "Autor não encontrado", null));
         } catch (DataIntegrityViolationException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(new ResponseObject(HttpStatus.CONFLICT,
+                            "Não é possível excluir o autor: existem dados associados", e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Erro inesperado ao excluir o autor.");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseObject(HttpStatus.INTERNAL_SERVER_ERROR, "Erro inesperado ao excluir o autor",
+                            null));
         }
     }
 
@@ -100,7 +116,8 @@ public class AutorController {
     }
 
     @GetMapping("/{id}/livros")
-    public ResponseEntity<Page<Livro>> getLivrosByAutor(@PathVariable("id") int idAutor, @RequestParam String search, @RequestParam(required=false) Integer idColecao, Pageable pageable) {
+    public ResponseEntity<Page<Livro>> getLivrosByAutor(@PathVariable("id") int idAutor, @RequestParam String search,
+            @RequestParam(required = false) Integer idColecao, Pageable pageable) {
         Page<Livro> livros = livroRepository.findByAllFields(search, idColecao, idAutor, pageable);
         return ResponseEntity.ok(livros);
     }

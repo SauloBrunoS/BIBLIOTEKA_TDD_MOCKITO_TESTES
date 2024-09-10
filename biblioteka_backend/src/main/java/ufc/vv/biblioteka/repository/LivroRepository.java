@@ -38,4 +38,6 @@ public interface LivroRepository extends JpaRepository<Livro, Integer> {
         @Query("SELECT l FROM Livro l WHERE l.isbn ILIKE '%'||:search||'%'")
         List<Livro> findAllWithISBNFilter(@Param("search") String search);
 
+        boolean existsByIsbn(String isbn);
+
 }

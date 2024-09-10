@@ -9,24 +9,27 @@ import jakarta.persistence.Id;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToOne;
 import jakarta.validation.constraints.NotNull;
+import lombok.AccessLevel;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import jakarta.persistence.JoinColumn;
 
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.voodoodyne.jackson.jsog.JSOGGenerator;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import org.springframework.format.annotation.DateTimeFormat;
 
 @Entity
 @Data
+@NoArgsConstructor
 @JsonIdentityInfo(generator = JSOGGenerator.class)
-@EqualsAndHashCode(of = "id")
 public class Reserva {
 
-    private static final int PRAZO_RESERVA_ATIVA_EM_DIAS = 2;
+    public static final int PRAZO_RESERVA_ATIVA_EM_DIAS = 2;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -34,21 +37,25 @@ public class Reserva {
 
     @ManyToOne
     @JoinColumn(name = "livro_id")
+    @NotNull(message = "Livro não pode ser nulo")
     private Livro livro;
 
     @ManyToOne
     @JoinColumn(name = "leitor_id")
+    @NotNull(message = "Leitor não pode ser nulo")
     private Leitor leitor;
 
-    @NotNull
     @DateTimeFormat(pattern = "dd/MM/yyyy")
-    private LocalDate dataCadastro;
+    @Setter(AccessLevel.NONE)
+    private LocalDateTime dataCadastro;
 
     @DateTimeFormat(pattern = "dd/MM/yyyy")
+    @Setter(AccessLevel.NONE)
     private LocalDate dataLimite;
 
     @Enumerated(EnumType.STRING)
-    @NotNull
+    @Setter(AccessLevel.NONE)
+    @NotNull(message = "Status da Reserva não pode ser nulo")
     private StatusReserva status;
 
     @OneToOne
@@ -66,6 +73,20 @@ public class Reserva {
 
     public void marcarComoCancelada() {
         this.status = StatusReserva.CANCELADA;
+    }
+
+    public void marcarComoExpirada() {
+        this.status = StatusReserva.EXPIRADA;
+    }
+
+    public void marcarComoAtendida() {
+        this.status = StatusReserva.ATENDIDA;
+    }
+
+    public Reserva(Livro livro, Leitor leitor) {
+        this.livro = livro;
+        this.leitor = leitor;
+        this.dataCadastro = LocalDateTime.now();
     }
 
 }

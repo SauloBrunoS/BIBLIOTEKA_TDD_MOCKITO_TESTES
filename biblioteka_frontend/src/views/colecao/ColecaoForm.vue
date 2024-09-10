@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import { reactive, watch } from "vue";
 import { Form, Field } from 'vee-validate';
-import { useNotificationStore } from '@/stores/Notification';
 import { Colecao } from '@/types';
 import ColecaoService from "@/api/ColecaoService";
 
@@ -16,10 +15,6 @@ const state = reactive({
     colecao: {} as Colecao,
     dialog: false as boolean
 })
-
-const constant = {
-    notificationStore: useNotificationStore()
-}
 
 function modoEdicao() {
     return !!props.colecaoId;
@@ -38,20 +33,20 @@ async function loadColecao() {
 }
 
 async function onSubmit(values: any, actions: any) {
+    if (values.descricao == undefined) values.descricao = null;
+    if (values.nome == undefined) values.nome = null;
     if (modoEdicao()) {
         try {
             await ColecaoService.update(values, props.colecaoId);
         }
         catch (err) {
             console.error("Erro ao alterar coleção:", err);
-            constant.notificationStore.notificar({ mensagem: "Erro ao alterar coleção!", tipoMensagem: "error", visibilidade: true })
         }
     } else {
         try {
             await ColecaoService.create(values);
         } catch (err) {
             console.error("Erro ao cadastrar nova coleção:", err);
-            constant.notificationStore.notificar({ mensagem: "Erro ao cadastrar nova coleção!", tipoMensagem: "error", visibilidade: true })
         }
     }
     emit("submitted")
@@ -94,8 +89,8 @@ function cancel() {
                             <v-col cols="12">
                                 <Field name="descricao" v-model.trim="state.colecao.descricao"
                                     v-slot="{ field, errors }">
-                                    <v-textarea label="Descrição" variant="outlined"
-                                        v-model="state.colecao.descricao" v-bind="field" :error-messages="errors" />
+                                    <v-textarea label="Descrição" variant="outlined" v-model="state.colecao.descricao"
+                                        v-bind="field" :error-messages="errors" />
                                 </Field>
                             </v-col>
                         </v-row>

@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import { reactive, watch } from "vue";
 import { Form, Field } from 'vee-validate';
-import { useNotificationStore } from '@/stores/Notification';
 import { Emprestimo, Leitor, Livro } from '@/types';
 import EmprestimoService from "@/api/EmprestimoService";
 import LivroService from "@/api/LivroService";
@@ -24,10 +23,6 @@ const state = reactive({
     listaLeitores: [] as Leitor[]
 })
 
-const constant = {
-    notificationStore: useNotificationStore()
-}
-
 async function onSubmit(values: any, actions: any) {
     try {
         if (props.leitorId != null)  await EmprestimoService.emprestar(props.leitorId, state.livro.id, state.senha);
@@ -37,7 +32,6 @@ async function onSubmit(values: any, actions: any) {
     }
     catch (err) {
         console.error("Erro ao cadastrar empréstimo:", err);
-        constant.notificationStore.notificar({ mensagem: "Erro ao ao cadastrar empréstimo!", tipoMensagem: "error", visibilidade: true })
     }
 }
 

@@ -25,7 +25,8 @@ public interface AutorRepository extends JpaRepository<Autor, Integer> {
                         @Param("nacionalidade") Nacionalidade nacionalidade,
                         Pageable pageable);
 
-        boolean existsByNomeCompleto(String nome);
+        @Query("SELECT COUNT(a) > 0 FROM Autor a WHERE LOWER(a.nomeCompleto) = LOWER(:nomeCompleto)")
+        boolean existsByNomeCompletoIgnoreCase(String nomeCompleto);
 
         @Query("SELECT a FROM Autor a WHERE a.nomeCompleto ILIKE '%'||:search||'%'")
         List<Autor> findAllWithFilter(@Param("search") String search);

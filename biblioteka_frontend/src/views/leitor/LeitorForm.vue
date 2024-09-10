@@ -46,27 +46,25 @@ async function onSubmit(values: any, actions: any) {
     if (modoEdicao()) {
         try {
             delete values.confirmacaoSenha;
-            if(values.senha != "")values.usuario = { id: state.leitor.usuario.id, email: values.email, senha: values.senha }
+            if(values.senha != "") values.usuario = { id: state.leitor.usuario.id, email: values.email, senha: values.senha }
             else values.usuario = { id: state.leitor.usuario.id, email: values.email}
             delete values.email;
             delete values.senha;
-            console.log(values)
+            values.cpf = state.leitor.cpf;
             await LeitorService.update(values, props.leitorId);
         }
         catch (err) {
             console.error("Erro ao alterar leitor:", err);
-            constant.notificationStore.notificar({ mensagem: "Erro ao alterar leitor!", tipoMensagem: "error", visibilidade: true })
         }
     } else {
         try {
             delete values.confirmacaoSenha;
-            values.usuario = { id: state.leitor.usuario.id, email: values.email, senha: values.senha }
+            values.usuario = { email: values.email, senha: values.senha }
             delete values.email;
             delete values.senha;
             await LeitorService.create(values);
         } catch (err) {
             console.error("Erro ao cadastrar novo leitor:", err);
-            constant.notificationStore.notificar({ mensagem: "Erro ao cadastrar novo leitor!", tipoMensagem: "error", visibilidade: true })
         }
     }
     emit("submitted")
@@ -117,7 +115,7 @@ const usuarioEmail = computed({
                                     </v-text-field>
                                 </Field>
                             </v-col>
-                            <v-col cols="3">
+                            <v-col cols="3" v-if="!props.leitorId">
                                 <Field name="cpf" v-model.trim="state.leitor.cpf" v-slot="{ field, errors }">
                                     <v-text-field v-bind="field" label="CPF" variant="outlined"
                                         v-model="state.leitor.cpf" :error-messages="errors">

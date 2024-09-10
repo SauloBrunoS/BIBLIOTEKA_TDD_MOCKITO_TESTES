@@ -17,17 +17,14 @@ import java.util.Optional;
 @RepositoryRestResource(collectionResourceRel = "emprestimos", path = "emprestimos")
 public interface EmprestimoRepository extends JpaRepository<Emprestimo, Integer> {
 
-        @Query("SELECT e FROM Emprestimo e WHERE " +
+        @Query("SELECT e FROM Emprestimo e LEFT JOIN fetch e.reserva LEFT JOIN FETCH e.livro LEFT JOIN FETCH e.leitor WHERE" +
                         "(:search IS NULL OR " +
                         "TO_CHAR(e.dataEmprestimo, 'DD/MM/YYYY') ILIKE '%' || :search || '%' OR " +
                         "TO_CHAR(e.dataLimite, 'DD/MM/YYYY') ILIKE '%' || :search || '%' OR " +
                         "TO_CHAR(e.dataDevolucao, 'DD/MM/YYYY') ILIKE '%' || :search || '%' OR " +
-                        "CAST(e.valorBase AS string) ILIKE '%' || :search || '%' OR " +
-                        "CAST(e.multa AS string) ILIKE '%' || :search || '%' OR " +
-                        "CAST(e.valorTotal AS string) ILIKE '%' || :search || '%' OR " +
                         "CAST(e.quantidadeRenovacoes AS string) ILIKE '%' || :search || '%' OR " +
                         "CAST(e.id AS string) ILIKE '%' || :search || '%' OR " +
-                        "(e.reserva IS NOT NULL AND CAST(e.reserva.id AS string) ILIKE '%' || :search || '%') OR " + 
+                        "(e.reserva IS NOT NULL AND CAST(e.reserva.id AS string) ILIKE '%' || :search || '%') OR " +
                         "e.livro.isbn ILIKE '%' || :search || '%') " +
                         "AND (:devolvido IS NULL OR e.devolvido = :devolvido) " +
                         "AND (:livroId IS NULL OR e.livro.id = :livroId) " +
@@ -39,14 +36,11 @@ public interface EmprestimoRepository extends JpaRepository<Emprestimo, Integer>
                         @Param("devolvido") Boolean devolvido,
                         Pageable pageable);
 
-        @Query("SELECT e FROM Emprestimo e WHERE " +
+        @Query("SELECT e FROM Emprestimo e LEFT JOIN fetch e.reserva LEFT JOIN FETCH e.livro LEFT JOIN FETCH e.leitor WHERE " +
                         "(:search IS NULL OR " +
                         "TO_CHAR(e.dataEmprestimo, 'DD/MM/YYYY') ILIKE '%' || :search || '%' OR " +
                         "TO_CHAR(e.dataLimite, 'DD/MM/YYYY') ILIKE '%' || :search || '%' OR " +
                         "TO_CHAR(e.dataDevolucao, 'DD/MM/YYYY') ILIKE '%' || :search || '%' OR " +
-                        "CAST(e.valorBase AS string) ILIKE '%' || :search || '%' OR " +
-                        "CAST(e.multa AS string) ILIKE '%' || :search || '%' OR " +
-                        "CAST(e.valorTotal AS string) ILIKE '%' || :search || '%' OR " +
                         "CAST(e.quantidadeRenovacoes AS string) ILIKE '%' || :search || '%' OR " +
                         "CAST(e.id AS string) ILIKE '%' || :search || '%' OR " +
                         "(e.reserva IS NOT NULL AND CAST(e.reserva.id AS string) ILIKE '%' || :search || '%') OR " +
@@ -65,6 +59,6 @@ public interface EmprestimoRepository extends JpaRepository<Emprestimo, Integer>
 
         List<Emprestimo> findByDevolvidoFalse();
 
-        int countByDevolvidoFalse();
+        int countByDevolvidoFalseAndLivroId(int livroId);
 
 }

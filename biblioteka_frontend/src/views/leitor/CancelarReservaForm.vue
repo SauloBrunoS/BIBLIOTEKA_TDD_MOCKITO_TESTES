@@ -1,8 +1,6 @@
 <script lang="ts" setup>
 import { reactive, watch } from "vue";
 import { Form, Field } from 'vee-validate';
-import { useNotificationStore } from '@/stores/Notification';
-import EmprestimoService from "@/api/EmprestimoService";
 import ReservaService from "@/api/ReservaService";
 const emit = defineEmits(['submitted', 'canceled'])
 
@@ -16,10 +14,6 @@ const state = reactive({
     dialog: false as boolean
 })
 
-const constant = {
-    notificationStore: useNotificationStore()
-}
-
 async function onSubmit(values: any, actions: any) {
     try {
         await ReservaService.cancelar(props.reservaId, state.senha);
@@ -28,7 +22,6 @@ async function onSubmit(values: any, actions: any) {
     }
     catch (err) {
         console.error("Erro ao cancelar reserva:", err);
-        constant.notificationStore.notificar({ mensagem: "Erro ao ao cancelar reserva!", tipoMensagem: "error", visibilidade: true })
     }
 }
 

@@ -3,8 +3,10 @@ package ufc.vv.biblioteka.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.validation.annotation.Validated;
 
 import jakarta.persistence.EntityNotFoundException;
+import ufc.vv.biblioteka.model.OnSave;
 import ufc.vv.biblioteka.model.Usuario;
 import ufc.vv.biblioteka.repository.UsuarioRepository;
 
@@ -20,7 +22,7 @@ public class UsuarioService {
         this.passwordEncoder = passwordEncoder;
     }
 
-    public Usuario save(Usuario usuario) {
+    public Usuario save(@Validated(OnSave.class) Usuario usuario) {
         String hashedPassword = passwordEncoder.encode(usuario.getSenha());
         usuario.setSenha(hashedPassword);
         return usuarioRepository.save(usuario);

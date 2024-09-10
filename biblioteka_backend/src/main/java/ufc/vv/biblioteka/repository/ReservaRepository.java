@@ -21,7 +21,8 @@ public interface ReservaRepository extends JpaRepository<Reserva, Integer> {
                         "TO_CHAR(r.dataCadastro, 'DD/MM/YYYY') iLIKE '%'||:search||'%' OR " +
                         "TO_CHAR(r.dataLimite, 'DD/MM/YYYY') iLIKE '%'||:search||'%' OR " +
                         "CAST(r.id AS string) ILIKE '%' || :search || '%' OR " +
-                        "(r.emprestimo IS NOT NULL AND CAST(r.emprestimo.id AS string) ILIKE '%' || :search || '%') OR " +
+                        "(r.emprestimo IS NOT NULL AND CAST(r.emprestimo.id AS string) ILIKE '%' || :search || '%') OR "
+                        +
                         "r.leitor.cpf iLIKE '%'||:search||'%') " +
                         "AND (:status IS NULL OR r.status = :status)")
         Page<Reserva> findByLivroIdAndSearch(
@@ -37,7 +38,8 @@ public interface ReservaRepository extends JpaRepository<Reserva, Integer> {
                         "TO_CHAR(r.dataCadastro, 'DD/MM/YYYY') iLIKE '%'||:search||'%' OR " +
                         "TO_CHAR(r.dataLimite, 'DD/MM/YYYY') iLIKE '%'||:search||'%' OR " +
                         "CAST(r.id AS string) ILIKE '%' || :search || '%' OR " +
-                        "(r.emprestimo IS NOT NULL AND CAST(r.emprestimo.id AS string) ILIKE '%' || :search || '%') OR " +
+                        "(r.emprestimo IS NOT NULL AND CAST(r.emprestimo.id AS string) ILIKE '%' || :search || '%') OR "
+                        +
                         "r.leitor.cpf iLIKE '%'||:search||'%') " +
                         "AND (:status IS NULL OR r.status = :status)")
         Page<Reserva> findByLeitorIdAndSearch(
@@ -49,7 +51,7 @@ public interface ReservaRepository extends JpaRepository<Reserva, Integer> {
 
         List<Reserva> findByStatusAndDataLimiteBefore(StatusReserva status, LocalDate dataLimite);
 
-        @Query("SELECT COUNT(r) FROM Reserva r WHERE r.status = :status")
-        int countByStatus(@Param("status") StatusReserva status);
+        @Query("SELECT COUNT(r) FROM Reserva r WHERE r.status = :status AND r.livro.id = :livroId")
+        int countByStatusAndLivroId(@Param("status") StatusReserva status, @Param("livroId") int livroId);
 
 }

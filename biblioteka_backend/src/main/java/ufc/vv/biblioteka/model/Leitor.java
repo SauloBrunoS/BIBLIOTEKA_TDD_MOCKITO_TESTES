@@ -1,11 +1,15 @@
 package ufc.vv.biblioteka.model;
 
+import java.util.ArrayList;
 import java.util.List;
+
+import org.hibernate.validator.constraints.br.CPF;
 
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.voodoodyne.jackson.jsog.JSOGGenerator;
 
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -13,38 +17,44 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Data
+@NoArgsConstructor
 @JsonIdentityInfo(generator = JSOGGenerator.class)
-@EqualsAndHashCode(of = "id")
 public class Leitor {
-
-    private static final int LIMITE_EMPRESTIMOS = 5;
-
-    private static final int LIMITE_RESERVAS_EM_ANDAMENTO = 5;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
-    @NotNull
-    @NotBlank
+    @NotBlank(message = "Nome completo não pode ser nulo ou vazio", groups = { OnCreate.class, OnUpdate.class })
+    @Size(min = 3, max = 100, message = "O nome completo deve ter entre 3 e 100 caracteres.", groups = { OnCreate.class,
+            OnUpdate.class })
+    @Pattern(regexp = "^[A-Za-zÀ-ÖØ-öø-ÿ'\\-\\s]+$", message = "O nome completo deve conter apenas letras, espaços, apóstrofos e hífens.", groups = {
+            OnCreate.class, OnUpdate.class })
     private String nomeCompleto;
 
-    @NotNull
-    @NotBlank
+    @Pattern(regexp = "\\d{10,11}", message = "Telefone deve ter exatamente 10 ou 11 dígitos", groups = {
+            OnCreate.class, OnUpdate.class })
+    @NotNull(message = "Telefone não pode ser nulo", groups = { OnCreate.class, OnUpdate.class })
     private String telefone;
 
-    @NotNull
-    @NotBlank
+    @NotNull(message = "CPF não pode ser nulo ou vazio", groups = { OnCreate.class, OnUpdate.class })
+    @CPF(message = "CPF deve ser válido", groups = { OnCreate.class, OnUpdate.class })
+    @Column(unique = true)
     private String cpf;
 
     @OneToOne(cascade = CascadeType.ALL)
+    @NotNull(message = "Usuário não pode ser nulo", groups = { OnCreate.class, OnUpdate.class })
+    @Valid
     @JoinColumn(name = "usuario_id", referencedColumnName = "id")
     private Usuario usuario;
 
@@ -54,37 +64,19 @@ public class Leitor {
     @OneToMany(mappedBy = "leitor", cascade = { CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REFRESH })
     private List<Reserva> reservas;
 
-    public int getQuantidadeEmprestimosNaoDevolvidos() {
-        if (emprestimos == null)
-            throw new IllegalStateException("Lista de emprestimos não pode ser nula");
-        return (int) this.emprestimos.stream()
-                .filter(emprestimo -> !emprestimo.isDevolvido())
-                .count();
+    public Leitor(String nomeCompleto, String telefone, String cpf, Usuario usuario) {
+        this.nomeCompleto = nomeCompleto;
+        this.telefone = telefone;
+        this.cpf = cpf;
+        this.usuario = usuario;
     }
 
-    public int getQuantidadeEmprestimosRestantes() {
-        int qtdEmprestimosNaoDevolvidos = getQuantidadeEmprestimosNaoDevolvidos();
-        int emprestimosRestantes = LIMITE_EMPRESTIMOS - qtdEmprestimosNaoDevolvidos;
-        if (emprestimosRestantes < 0)
-            throw new IllegalStateException(
-                    "Limite de emprestimos não pode ser menor que quantidade de empréstimos não devolvidos");
-        return emprestimosRestantes;
-    }
-
-    public int getQuantidadeReservasEmAndamento() {
-        if (reservas == null)
-            throw new IllegalStateException("Lista de reservas não pode ser nula");
-        return (int) this.reservas.stream()
-                .filter(reserva -> reserva.getStatus() == StatusReserva.EM_ANDAMENTO || reserva.getStatus() == StatusReserva.EM_ESPERA)
-                .count();
-    }
-
-    public int getQuantidadeReservasRestantes() {
-        int qtdReservasEmAndamento = getQuantidadeReservasEmAndamento();
-        int reservasRestantes = LIMITE_RESERVAS_EM_ANDAMENTO - qtdReservasEmAndamento;
-        if (reservasRestantes < 0)
-            throw new IllegalStateException(
-                    "Limite de reservas em andamento não pode ser menor que quantidade de reservas em andamento");
-        return reservasRestantes;
+    public void adicionarEmprestimo(Emprestimo emprestimo) {
+        if (this.emprestimos != null)
+            emprestimos.add(emprestimo);
+        else {
+            emprestimos = new ArrayList<>();
+            emprestimos.add(emprestimo);
+        }
     }
 }

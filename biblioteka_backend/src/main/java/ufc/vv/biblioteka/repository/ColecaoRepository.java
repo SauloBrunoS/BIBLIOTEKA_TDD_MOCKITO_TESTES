@@ -11,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.data.rest.core.annotation.RepositoryRestResource;
 
 import ufc.vv.biblioteka.model.Colecao;
+import java.util.Optional;
 
 @RepositoryRestResource(collectionResourceRel = "colecoes", path = "colecoes")
 public interface ColecaoRepository extends JpaRepository<Colecao, Integer> {
@@ -22,8 +23,12 @@ public interface ColecaoRepository extends JpaRepository<Colecao, Integer> {
                         @Param("search") String search,
                         Pageable pageable);
 
-        boolean existsByNome(String nome);
+        @Query("SELECT COUNT(c) > 0 FROM Colecao c WHERE LOWER(c.nome) = LOWER(:nome)")
+        boolean existsByNomeIgnoreCase(String nome);
 
         @Query("SELECT c FROM Colecao c WHERE c.nome ILIKE '%'||:search||'%'")
         List<Colecao> findAllWithFilter(@Param("search") String search);
+
+        @Query("SELECT c FROM Colecao c LEFT JOIN FETCH c.livros WHERE c.id = :id")
+        Optional<Colecao> findByIdWithLivros(@Param("id") Integer id);
 }

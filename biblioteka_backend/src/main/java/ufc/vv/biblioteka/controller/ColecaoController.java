@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.validation.Valid;
 import ufc.vv.biblioteka.model.Colecao;
 import ufc.vv.biblioteka.model.Livro;
 import ufc.vv.biblioteka.repository.ColecaoRepository;
@@ -48,45 +49,62 @@ public class ColecaoController {
     }
 
     @PostMapping
-    public ResponseEntity<?> createColecao(@RequestBody Colecao colecao) {
+    public ResponseEntity<ResponseObject> createColecao(@Valid @RequestBody Colecao colecao) {
         try {
             Colecao createdColecao = colecaoService.createColecao(colecao);
-            return ResponseEntity.ok(createdColecao);
+            return ResponseEntity.ok(new ResponseObject(HttpStatus.OK, "Coleção criada com sucesso", createdColecao));
         } catch (DuplicateKeyException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(new ResponseObject(HttpStatus.CONFLICT, "Coleção já existente", e.getMessage()));
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(new ResponseObject(HttpStatus.BAD_REQUEST, "Dados inválidos", e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Erro inesperado ao criar o autor.");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseObject(HttpStatus.INTERNAL_SERVER_ERROR, "Erro inesperado ao criar a coleção",
+                            null));
         }
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> updatedColecao(@PathVariable int id, @RequestBody Colecao colecaoDetails) {
+    public ResponseEntity<ResponseObject> updatedColecao(@PathVariable int id,
+            @Valid @RequestBody Colecao colecaoDetails) {
         try {
             Colecao updatedColecao = colecaoService.updateColecao(id, colecaoDetails);
-            return ResponseEntity.ok(updatedColecao);
+            return ResponseEntity
+                    .ok(new ResponseObject(HttpStatus.OK, "Coleção atualizada com sucesso", updatedColecao));
+        } catch (DuplicateKeyException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(new ResponseObject(HttpStatus.CONFLICT, "Coleção já existente", e.getMessage()));
         } catch (EntityNotFoundException e) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ResponseObject(HttpStatus.NOT_FOUND, "Coleção não encontrada", null));
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(new ResponseObject(HttpStatus.BAD_REQUEST, "Dados inválidos", e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro inesperado ao atualizar o autor.");
+                    .body(new ResponseObject(HttpStatus.INTERNAL_SERVER_ERROR, "Erro inesperado ao atualizar a coleção",
+                            null));
         }
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteColecao(@PathVariable int id) {
+    public ResponseEntity<ResponseObject> deleteColecao(@PathVariable int id) {
         try {
             colecaoService.deleteColecaoById(id);
-            return ResponseEntity.ok().build();
+            return ResponseEntity.ok(new ResponseObject(HttpStatus.OK, "Coleção excluída com sucesso", null));
         } catch (EntityNotFoundException e) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ResponseObject(HttpStatus.NOT_FOUND, "Coleção não encontrada", null));
         } catch (DataIntegrityViolationException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(new ResponseObject(HttpStatus.CONFLICT,
+                            "Não é possível excluir a coleção: existem dados associados", e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Erro inesperado ao excluir o autor.");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseObject(HttpStatus.INTERNAL_SERVER_ERROR, "Erro inesperado ao excluir a coleção",
+                            null));
         }
     }
 
@@ -99,7 +117,7 @@ public class ColecaoController {
 
     @GetMapping("{id}/livros")
     public ResponseEntity<Page<Livro>> buscarLivrosPorColecaoId(@PathVariable("id") int idColecao,
-            @RequestParam String search, @RequestParam(required=false) Integer idAutor, Pageable pageable) {
+            @RequestParam String search, @RequestParam(required = false) Integer idAutor, Pageable pageable) {
         Page<Livro> livros = livroRepository.findByAllFields(search, idColecao, idAutor, pageable);
         return ResponseEntity.ok(livros);
     }

@@ -93,7 +93,8 @@ async function deletarItem(id: number) {
         atualizarDialogDelete();
         constant.notificationStore.notificar({ mensagem: "Leitor excluído com sucesso", tipoMensagem: "success", visibilidade: true })
     } catch (err) {
-        constant.notificationStore.notificar({ mensagem: "Erro ao excluir o leitor!", tipoMensagem: "error", visibilidade: true })
+        console.error("Erro ao excluir o leitor:", err);
+
     }
 }
 function exibirEmprestimosLeitor(idLeitor: number) {

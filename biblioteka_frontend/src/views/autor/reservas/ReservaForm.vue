@@ -38,7 +38,6 @@ async function onSubmit(values: any, actions: any) {
     }
     catch (err) {
         console.error("Erro ao cadastrar reserva:", err);
-        constant.notificationStore.notificar({ mensagem: "Erro ao ao cadastrar reserva!", tipoMensagem: "error", visibilidade: true })
     }
 }
 

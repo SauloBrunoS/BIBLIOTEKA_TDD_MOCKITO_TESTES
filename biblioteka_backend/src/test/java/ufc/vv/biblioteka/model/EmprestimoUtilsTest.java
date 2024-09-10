@@ -1,144 +1,162 @@
 package ufc.vv.biblioteka.model;
-
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.*;
 
-public class EmprestimoUtilsTest {
+class EmprestimoUtilsTest {
 
     @Test
-    public void calcularMulta_shouldReturnZeroWhenDataDevolucaoIsBeforeOrEqualToDataLimite() {
-        // Arrange
-        LocalDate dataLimite = LocalDate.now();
-        LocalDate dataDevolucao = dataLimite;
-
-        // Act
-        double multa = EmprestimoUtils.calcularMulta(dataDevolucao, dataLimite);
-
-        // Assert
-        assertThat(multa).isEqualTo(0.0);
+    void testCalcularMulta_DataLimiteNula() {
+        LocalDate dataDevolucao = LocalDate.now();
+        assertThrows(IllegalArgumentException.class, () -> EmprestimoUtils.calcularMulta(dataDevolucao, null));
     }
 
     @Test
-    public void calcularMulta_shouldReturnZeroWhenDataDevolucaoIsNullAndTodayIsBeforeOrEqualToDataLimite() {
-        // Arrange
-        LocalDate dataLimite = LocalDate.now().plusDays(1);
+    void testCalcularMulta_DevolucaoAntesDoPrazo() {
+        LocalDate dataDevolucao = LocalDate.of(2024, 9, 5);
+        LocalDate dataLimite = LocalDate.of(2024, 9, 10);
+        double multa = EmprestimoUtils.calcularMulta(dataDevolucao, dataLimite);
+        assertEquals(0.0, multa);
+    }
+
+    @Test
+    void testCalcularMulta_DevolucaoAposADataLimite() {
+        LocalDate dataDevolucao = LocalDate.of(2024, 9, 15);
+        LocalDate dataLimite = LocalDate.of(2024, 9, 10);
+        double multa = EmprestimoUtils.calcularMulta(dataDevolucao, dataLimite);
+        assertEquals(5.0*EmprestimoUtils.TAXA_MULTA_POR_DIA, multa); 
+    }
+
+    @Test
+    void testCalcularMulta_DevolucaoNaDataLimite() {
+        LocalDate dataDevolucao = LocalDate.of(2024, 9, 15);
+        LocalDate dataLimite = LocalDate.of(2024, 9, 15);
+        double multa = EmprestimoUtils.calcularMulta(dataDevolucao, dataLimite);
+        assertEquals(0.0, multa); 
+    }
+
+    @Test
+    void testCalcularMulta_DevolucaoNulaAtraso() {
         LocalDate dataDevolucao = null;
-
-        // Act
+        LocalDate dataLimite = LocalDate.now().minusDays(5);
         double multa = EmprestimoUtils.calcularMulta(dataDevolucao, dataLimite);
-
-        // Assert
-        assertThat(multa).isEqualTo(0.0);
+        assertEquals(5.0*EmprestimoUtils.TAXA_MULTA_POR_DIA, multa); 
     }
 
     @Test
-    public void calcularMulta_shouldCalculateMultaWhenDataDevolucaoIsAfterDataLimite() {
-        // Arrange
+    void testCalcularMulta_DevolucaoNulaSemAtraso() {
+        LocalDate dataDevolucao = null;
+        LocalDate dataLimite = LocalDate.now().plusDays(5);
+        double multa = EmprestimoUtils.calcularMulta(dataDevolucao, dataLimite);
+        assertEquals(0.0, multa);
+    }
+
+    @Test
+    void testCalcularMulta_DevolucaoNulaDataLimiteHoje() {
+        LocalDate dataDevolucao = null;
         LocalDate dataLimite = LocalDate.now();
-        LocalDate dataDevolucao = dataLimite.plusDays(3);
-
-        // Act
         double multa = EmprestimoUtils.calcularMulta(dataDevolucao, dataLimite);
+        assertEquals(0.0, multa);
+    }
 
-        // Assert
-        assertThat(multa).isEqualTo(6.0); // 3 days late * 2.0 per day
+
+    @Test
+    void testCalcularValorBase_DataEmprestimoNula() {
+        LocalDate dataEmprestimo = null;
+        LocalDate dataDevolucao = LocalDate.of(2024, 9, 5);
+        LocalDate dataLimite = LocalDate.of(2024, 9, 10);
+        assertThrows(IllegalArgumentException.class, () -> EmprestimoUtils.calcularValorBase(dataEmprestimo, dataDevolucao, dataLimite));
     }
 
     @Test
-    public void calcularMulta_shouldCalculateMultaWhenDataDevolucaoIsNullAndTodayIsAfterDataLimite() {
-        // Arrange
+    void testCalcularValorBase_DataLimiteNula() {
+        LocalDate dataEmprestimo = LocalDate.of(2024, 9, 1);
+        LocalDate dataDevolucao = LocalDate.of(2024, 9, 5);
+        LocalDate dataLimite = null;
+        assertThrows(IllegalArgumentException.class, () -> EmprestimoUtils.calcularValorBase(dataEmprestimo, dataDevolucao, dataLimite));
+    }
+
+    @Test
+    void testCalcularValorBase_EmprestimoComDevolucaoNulaAnteriorADataLimite() {
+        LocalDate dataEmprestimo = LocalDate.now().minusDays(7);
+        LocalDate dataDevolucao = null;
+        LocalDate dataLimite = LocalDate.now().plusDays(8);
+        double valorBase = EmprestimoUtils.calcularValorBase(dataEmprestimo, dataDevolucao, dataLimite);
+        assertEquals(7.0, valorBase); 
+    }
+
+    @Test
+    void testCalcularValorBase_EmprestimoComDevolucaoNulaPosteriorADataLimite() {
+        LocalDate dataEmprestimo = LocalDate.now().minusDays(17);
+        LocalDate dataDevolucao = null;
         LocalDate dataLimite = LocalDate.now().minusDays(2);
-        LocalDate dataDevolucao = null;
-
-        // Act
-        double multa = EmprestimoUtils.calcularMulta(dataDevolucao, dataLimite);
-
-        // Assert
-        assertThat(multa).isEqualTo(4.0); // 2 days late * 2.0 per day
-    }
-
-    @Test
-    public void calcularMulta_shouldThrowExceptionWhenDataLimiteIsNull() {
-        // Act & Assert
-        assertThatThrownBy(() -> EmprestimoUtils.calcularMulta(LocalDate.now(), null))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessage("Data limite não podem ser nula.");
-    }
-
-    @Test
-    public void calcularValorBase_shouldCalculateCorrectlyWithDataDevolucao() {
-        // Arrange
-        LocalDate dataEmprestimo = LocalDate.now().minusDays(5);
-        LocalDate dataDevolucao = LocalDate.now();
-        LocalDate dataLimite = LocalDate.now().plusDays(5);
-
-        // Act
         double valorBase = EmprestimoUtils.calcularValorBase(dataEmprestimo, dataDevolucao, dataLimite);
-
-        // Assert
-        assertThat(valorBase).isEqualTo(5.0); // 5 days * 1.0 per day
+        assertEquals(15.0, valorBase); 
     }
 
     @Test
-    public void calcularValorBase_shouldCalculateCorrectlyWhenDataDevolucaoIsNullAndBeforeOrEqualToDataLimite() {
-        // Arrange
-        LocalDate dataEmprestimo = LocalDate.now().minusDays(5);
-        LocalDate dataDevolucao = null;
-        LocalDate dataLimite = LocalDate.now().plusDays(5);
-
-        // Act
+    void testCalcularValorBase_EmprestimoDentroDoPrazo() {
+        LocalDate dataEmprestimo = LocalDate.of(2024, 9, 1);
+        LocalDate dataDevolucao = LocalDate.of(2024, 9, 5);
+        LocalDate dataLimite = LocalDate.of(2024, 9, 16);
         double valorBase = EmprestimoUtils.calcularValorBase(dataEmprestimo, dataDevolucao, dataLimite);
-
-        // Assert
-        assertThat(valorBase).isEqualTo(5.0); // 5 days * 1.0 per day
+        assertEquals(4.0, valorBase); 
     }
 
     @Test
-    public void calcularValorBase_shouldThrowExceptionWhenDataEmprestimoOrDataLimiteAreNull() {
-        // Act & Assert
-        assertThatThrownBy(() -> EmprestimoUtils.calcularValorBase(null, LocalDate.now(), LocalDate.now()))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessage("Data de empréstimo e data de limite não podem ser nulas.");
-
-        assertThatThrownBy(() -> EmprestimoUtils.calcularValorBase(LocalDate.now(), LocalDate.now(), null))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessage("Data de empréstimo e data de limite não podem ser nulas.");
+    void testCalcularValorBase_EmprestimoComDevolucaoAtrasada() {
+        LocalDate dataEmprestimo = LocalDate.of(2024, 9, 1);
+        LocalDate dataDevolucao = LocalDate.of(2024, 9, 22);
+        LocalDate dataLimite = LocalDate.of(2024, 9, 16);
+        double valorBase = EmprestimoUtils.calcularValorBase(dataEmprestimo, dataDevolucao, dataLimite);
+        assertEquals(15.0, valorBase); 
     }
 
     @Test
-    public void calcularValorBase_shouldThrowExceptionWhenDataEmprestimoIsAfterData() {
-        // Arrange
-        LocalDate dataEmprestimo = LocalDate.now().plusDays(5);
-        LocalDate dataDevolucao = LocalDate.now();
-
-        // Act & Assert
-        assertThatThrownBy(() -> EmprestimoUtils.calcularValorBase(dataEmprestimo, dataDevolucao, dataDevolucao))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessage("A data de empréstimo não pode ser posterior à data de devolução ou data atual.");
+    void testCalcularValorBase_DataEmprestimoPosteriorDataDevolucao() {
+        LocalDate dataEmprestimo = LocalDate.of(2024, 9, 10);
+        LocalDate dataDevolucao = LocalDate.of(2024, 9, 5);
+        LocalDate dataLimite = LocalDate.of(2024, 9, 25);
+        assertThrows(IllegalArgumentException.class, () -> EmprestimoUtils.calcularValorBase(dataEmprestimo, dataDevolucao, dataLimite));
     }
 
     @Test
-    public void calcularValorTotal_shouldCalculateSumOfValorBaseAndMulta() {
-        // Act
-        double valorTotal = EmprestimoUtils.calcularValorTotal(10.0, 5.0);
-
-        // Assert
-        assertThat(valorTotal).isEqualTo(15.0);
+    void testCalcularValorBase_DataEmprestimoPosteriorDataLimite() {
+        LocalDate dataEmprestimo = LocalDate.of(2024, 9, 10);
+        LocalDate dataDevolucao = LocalDate.of(2024, 9, 12);
+        LocalDate dataLimite = LocalDate.of(2024, 9, 8);
+        assertThrows(IllegalArgumentException.class, () -> EmprestimoUtils.calcularValorBase(dataEmprestimo, dataDevolucao, dataLimite));
     }
 
     @Test
-    public void calcularValorTotal_shouldThrowExceptionWhenValoresAreNegative() {
-        // Act & Assert
-        assertThatThrownBy(() -> EmprestimoUtils.calcularValorTotal(-10.0, 5.0))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessage("Valores não podem ser negativos.");
+    void testCalcularValorBase_DataEmprestimoPosteriorDataAtual() {
+        LocalDate dataEmprestimo = LocalDate.now().plusDays(2);
+        LocalDate dataDevolucao = null;
+        LocalDate dataLimite = LocalDate.now().plusDays(17);
+        assertThrows(IllegalArgumentException.class, () -> EmprestimoUtils.calcularValorBase(dataEmprestimo, dataDevolucao, dataLimite));
+    }
 
-        assertThatThrownBy(() -> EmprestimoUtils.calcularValorTotal(10.0, -5.0))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessage("Valores não podem ser negativos.");
+    @Test
+    void testCalcularValorTotal_ValoresValidos() {
+        double valorBase = 10.0;
+        double multa = 5.0;
+        double valorTotal = EmprestimoUtils.calcularValorTotal(valorBase, multa);
+        assertEquals(15.0, valorTotal);
+    }
+
+    @Test
+    void testCalcularValorTotal_PrimeiroValorNegativo() {
+        double valorBase = -10.0;
+        double multa = 5.0;
+        assertThrows(IllegalArgumentException.class, () -> EmprestimoUtils.calcularValorTotal(valorBase, multa));
+    }
+
+    @Test
+    void testCalcularValorTotal_SegundoValorNegativo() {
+        double valorBase = 10.0;
+        double multa = -5.0;
+        assertThrows(IllegalArgumentException.class, () -> EmprestimoUtils.calcularValorTotal(valorBase, multa));
     }
 }

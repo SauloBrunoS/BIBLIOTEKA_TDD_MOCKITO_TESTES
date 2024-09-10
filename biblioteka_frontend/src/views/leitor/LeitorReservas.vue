@@ -57,7 +57,6 @@ function loadItems({ search, page, itemsPerPage, sortBy }: InfoDataTableServer) 
     ReservaService.findSearchReservasByLeitorId(page, itemsPerPage, sortBy, search, props.leitorId, state.livro?.id, state.selectedStatus)
         .then(({ items: reservas, pagination: page }) => {
             state.listaReservas = reservas
-            console.log(state.listaReservas)
             state.pagination.page = page.pageable.number
             state.pagination.total = page.totalElements
             state.pagination.pageCount = page.totalPages

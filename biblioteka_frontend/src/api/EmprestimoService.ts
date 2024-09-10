@@ -65,6 +65,7 @@ export default {
         sort: `${sortBy?.[0]?.key ?? 'id'},${sortBy?.[0]?.order ?? 'desc'}`,
       }
     })
+    console.log(data)
     const { content: emprestimos, ...page } = data;
     return { items: emprestimos, pagination: page }
   },

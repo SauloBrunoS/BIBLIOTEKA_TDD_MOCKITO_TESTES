@@ -1,7 +1,6 @@
 <script lang="ts" setup>
-import { reactive, watch } from "vue";
+import { onMounted, reactive, watch } from "vue";
 import { Form, Field } from 'vee-validate';
-import { useNotificationStore } from '@/stores/Notification';
 import { Autor } from '@/types';
 import AutorService from "@/api/AutorService";
 import { Nacionalidade } from "@/types/enum";
@@ -17,12 +16,8 @@ const props = defineProps<{
 const state = reactive({
     autor: {} as Autor,
     dialog: false as boolean,
-    showDatePicker: false as boolean
+    showDatePicker: false as boolean,
 })
-
-const constant = {
-    notificationStore: useNotificationStore()
-}
 
 function modoEdicao() {
     return !!props.autorId;
@@ -48,15 +43,14 @@ async function onSubmit(values: any, actions: any) {
         }
         catch (err) {
             console.error("Erro ao alterar autor:", err);
-            constant.notificationStore.notificar({ mensagem: "Erro ao alterar autor!", tipoMensagem: "error", visibilidade: true })
         }
     } else {
         try {
-            values.dataNascimento = dayjs(state.autor.dataNascimento).format("YYYY-MM-DD");
+            if (values.dataNascimento != null) values.dataNascimento = dayjs(state.autor.dataNascimento).format("YYYY-MM-DD");
+            console.log(values)
             await AutorService.create(values);
         } catch (err) {
             console.error("Erro ao cadastrar novo autor:", err);
-            constant.notificationStore.notificar({ mensagem: "Erro ao cadastrar novo autor!", tipoMensagem: "error", visibilidade: true })
         }
     }
     emit("submitted")
@@ -67,7 +61,10 @@ watch(
     () => props.dialogVisible,
     (novoDialogVisible) => {
         state.dialog = novoDialogVisible;
-        if (novoDialogVisible) loadAutor();
+        if (novoDialogVisible) {
+            loadAutor();
+            state.autor.dataNascimento = null as unknown as string;
+        }
     },
 );
 
@@ -78,7 +75,7 @@ function cancel() {
 function createOptions<T>(enumObject: T) {
     return Object.keys(enumObject).map(key => ({
         text: enumObject[key as keyof T],
-        value: key
+        value: key == "NENHUM" ? null : key
     }));
 }
 

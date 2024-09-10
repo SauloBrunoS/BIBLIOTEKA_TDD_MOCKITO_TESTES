@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import { reactive, watch } from "vue";
 import { Form, Field } from 'vee-validate';
-import { useNotificationStore } from '@/stores/Notification';
 import EmprestimoService from "@/api/EmprestimoService";
 const emit = defineEmits(['submitted', 'canceled'])
 
@@ -15,9 +14,6 @@ const state = reactive({
     dialog: false as boolean
 })
 
-const constant = {
-    notificationStore: useNotificationStore()
-}
 
 async function onSubmit(values: any, actions: any) {
     try {
@@ -27,7 +23,6 @@ async function onSubmit(values: any, actions: any) {
     }
     catch (err) {
         console.error("Erro ao devolver livro:", err);
-        constant.notificationStore.notificar({ mensagem: "Erro ao ao devolver livro!", tipoMensagem: "error", visibilidade: true })
     }
 }
 

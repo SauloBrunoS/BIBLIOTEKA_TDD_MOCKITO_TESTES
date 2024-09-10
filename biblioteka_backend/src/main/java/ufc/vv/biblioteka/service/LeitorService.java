@@ -17,30 +17,25 @@ import ufc.vv.biblioteka.repository.UsuarioRepository;
 public class LeitorService {
 
     private final LeitorRepository leitorRepository;
-
+    private final UsuarioService usuarioService;
     private final UsuarioRepository usuarioRepository;
 
-    private final UsuarioService usuarioService;
-
-
     @Autowired
-    public LeitorService(LeitorRepository leitorRepository, UsuarioRepository usuarioRepository, UsuarioService usuarioService) {
+    public LeitorService(LeitorRepository leitorRepository,
+            UsuarioService usuarioService, UsuarioRepository usuarioRepository) {
         this.leitorRepository = leitorRepository;
-        this.usuarioRepository = usuarioRepository;
         this.usuarioService = usuarioService;
+        this.usuarioRepository = usuarioRepository;
+    }
+
+    private Leitor buscarLeitorPorId(int leitorId) {
+        return leitorRepository.findById(leitorId)
+                .orElseThrow(() -> new EntityNotFoundException("Leitor não encontrado"));
     }
 
     @Transactional
     public Leitor criarLeitor(Leitor leitor) {
         validarLeitorAoCadastrar(leitor);
-
-        if (usuarioRepository.existsByEmail(leitor.getUsuario().getEmail())) {
-            throw new DuplicateKeyException("Um usuário com este e-mail já está cadastrado.");
-        }
-
-        if (leitorRepository.existsByCpf(leitor.getCpf())) {
-            throw new DuplicateKeyException("Um usuário com este cpf já está cadastrado.");
-        }
 
         Usuario usuario = leitor.getUsuario();
         usuario.setTipoUsuario(TipoUsuario.LEITOR);
@@ -49,10 +44,10 @@ public class LeitorService {
     }
 
     public Leitor atualizarLeitor(int id, Leitor leitorAtualizado) {
-        Leitor leitorExistente = leitorRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Leitor não encontrado"));
+     
+        Leitor leitorExistente = buscarLeitorPorId(id);
 
-        validarLeitorAoEditar(leitorAtualizado);
+        validarLeitorEditado(leitorExistente, leitorAtualizado);
 
         leitorExistente.setNomeCompleto(leitorAtualizado.getNomeCompleto());
         leitorExistente.setTelefone(leitorAtualizado.getTelefone());
@@ -62,36 +57,34 @@ public class LeitorService {
     }
 
     public void excluirLeitor(int id) {
-        Leitor leitor = leitorRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Leitor não encontrado"));
-
-        if ((leitor.getEmprestimos() != null && !leitor.getEmprestimos().isEmpty())
-                || (leitor.getReservas() != null && !leitor.getReservas().isEmpty())) {
-            throw new DataIntegrityViolationException(
-                    "Não é possível excluir o leitor porque ele tem empréstimos ou reservas.");
-        }
+        Leitor leitor = buscarLeitorPorId(id);
+        validarExclusao(leitor);
         leitorRepository.delete(leitor);
     }
 
     private void validarLeitorAoCadastrar(Leitor leitor) {
-        if (leitor.getNomeCompleto() == null || leitor.getNomeCompleto().isEmpty() ||
-                leitor.getTelefone() == null || leitor.getTelefone().isEmpty() ||
-                leitor.getCpf() == null || leitor.getCpf().isEmpty() ||
-                leitor.getUsuario() == null || leitor.getUsuario().getEmail() == null
-                || leitor.getUsuario().getEmail().isEmpty() || leitor.getUsuario().getSenha() == null
-                || leitor.getUsuario().getSenha().isEmpty()) {
-            throw new IllegalArgumentException("Todos os campos obrigatórios devem ser preenchidos.");
+
+        if (usuarioRepository.existsByEmailIgnoresCase(leitor.getUsuario().getEmail())) {
+            throw new DuplicateKeyException("Um usuário com este e-mail já está cadastrado.");
+        }
+
+        if (leitorRepository.existsByCpf(leitor.getCpf())) {
+            throw new DuplicateKeyException("Um usuário com este CPF já está cadastrado.");
         }
     }
 
-    private void validarLeitorAoEditar(Leitor leitor) {
-        if (leitor.getNomeCompleto() == null || leitor.getNomeCompleto().isEmpty() ||
-                leitor.getTelefone() == null || leitor.getTelefone().isEmpty() ||
-                leitor.getCpf() == null || leitor.getCpf().isEmpty() ||
-                leitor.getUsuario() == null || leitor.getUsuario().getEmail() == null
-                || leitor.getUsuario().getEmail().isEmpty()) {
-            throw new IllegalArgumentException("Todos os campos obrigatórios devem ser preenchidos.");
+    private void validarExclusao(Leitor leitor) {
+        if ((leitor.getEmprestimos() != null && !leitor.getEmprestimos().isEmpty()) ||
+                (leitor.getReservas() != null && !leitor.getReservas().isEmpty())) {
+            throw new DataIntegrityViolationException(
+                    "Não é possível excluir o leitor porque ele tem empréstimos ou reservas.");
         }
     }
 
+    private void validarLeitorEditado(Leitor existingLeitor, Leitor updatedLeitor) {
+        if (!existingLeitor.getUsuario().getEmail().equals(updatedLeitor.getUsuario().getEmail()) &&
+                usuarioRepository.existsByEmailIgnoresCase(updatedLeitor.getUsuario().getEmail())) {
+            throw new DuplicateKeyException("Um leitor com este e-mail já está cadastrado.");
+        }
+    }
 }

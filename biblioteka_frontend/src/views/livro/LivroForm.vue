@@ -53,25 +53,26 @@ async function loadLivro() {
 
 async function onSubmit(values: any, actions: any) {
 
-    values.dataPublicacao = dayjs(state.livro.dataPublicacao).format("YYYY-MM-DD");
+    if(values.dataPublicacao != null) values.dataPublicacao = dayjs(state.livro.dataPublicacao).format("YYYY-MM-DD");
     values.autores = state.listaAutoresParaAdicionar.map(item => ({ id: item.id }));;
     values.colecoes = state.listaColecoesParaAdicionar.map(item => ({ id: item.id }));;
 
     if (modoEdicao()) {
         try {
+            console.log(values)
+            values.numeroCopiasDisponiveis = values.numeroCopiasTotais;
             await LivroService.update(values, props.livroId);
         }
         catch (err) {
             console.error("Erro ao alterar livro:", err);
-            constant.notificationStore.notificar({ mensagem: "Erro ao alterar livro!", tipoMensagem: "error", visibilidade: true })
         }
     } else {
         try {
             values.numeroCopiasDisponiveis = values.numeroCopiasTotais;
+            console.log(values)
             await LivroService.create(values);
         } catch (err) {
             console.error("Erro ao cadastrar novo livro:", err);
-            constant.notificationStore.notificar({ mensagem: "Erro ao cadastrar novo livro!", tipoMensagem: "error", visibilidade: true })
         }
     }
     limparItens();
@@ -96,7 +97,10 @@ watch(
     () => props.dialogVisible,
     (novoDialogVisible) => {
         state.dialog = novoDialogVisible;
-        if (novoDialogVisible) loadLivro();
+        if (novoDialogVisible) {
+            loadLivro();
+            state.livro.dataPublicacao = null as unknown as string;
+        }
     },
 );
 

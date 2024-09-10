@@ -91,7 +91,7 @@ async function deletarItem(id: number) {
         atualizarDialogDelete();
         constant.notificationStore.notificar({ mensagem: "Autor excluído com sucesso", tipoMensagem: "success", visibilidade: true })
     } catch (err) {
-        constant.notificationStore.notificar({ mensagem: "Erro ao excluir o autor!", tipoMensagem: "error", visibilidade: true })
+        console.error("Erro ao deletar autor: " + err);
     }
 }
 

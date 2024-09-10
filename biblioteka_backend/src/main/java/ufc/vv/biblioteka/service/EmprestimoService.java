@@ -2,21 +2,23 @@ package ufc.vv.biblioteka.service;
 
 import java.time.LocalDate;
 
-import java.util.Comparator;
-import java.util.List;
-
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import ufc.vv.biblioteka.exception.DataRenovacaoException;
+import ufc.vv.biblioteka.exception.EmprestimoEmAndamentoExistenteException;
+import ufc.vv.biblioteka.exception.EmprestimoJaDevolvidoException;
+import ufc.vv.biblioteka.exception.LeitorNaoEncontradoException;
 import ufc.vv.biblioteka.exception.LimiteExcedidoException;
 import ufc.vv.biblioteka.exception.LivroIndisponivelException;
+import ufc.vv.biblioteka.exception.LivroNaoEncontradoException;
 import ufc.vv.biblioteka.exception.ReservaEmEsperaException;
 import ufc.vv.biblioteka.model.Emprestimo;
+import ufc.vv.biblioteka.model.GerenciadorEmprestimoReserva;
+import ufc.vv.biblioteka.model.GerenciadorRenovacao;
 import ufc.vv.biblioteka.model.Leitor;
 import ufc.vv.biblioteka.model.Livro;
 import ufc.vv.biblioteka.model.Reserva;
@@ -24,128 +26,68 @@ import ufc.vv.biblioteka.model.StatusReserva;
 import ufc.vv.biblioteka.repository.EmprestimoRepository;
 import ufc.vv.biblioteka.repository.LeitorRepository;
 import ufc.vv.biblioteka.repository.LivroRepository;
-import ufc.vv.biblioteka.repository.ReservaRepository;
-
-import java.util.Optional;
 
 @Service
 public class EmprestimoService {
-
     private final EmprestimoRepository emprestimoRepository;
-
-    private final LivroRepository livroRepository;
-
-    private final LeitorRepository leitorRepository;
-
-    private final ReservaRepository reservaRepository;
-
     private final UsuarioService usuarioService;
+    private final GerenciadorReserva gerenciadorReserva;
+    private final LivroRepository livroRepository;
+    private final LeitorRepository leitorRepository;
+    private final GerenciadorEmprestimoReserva gerenciadorEmprestimoReserva;
+    private final GerenciadorRenovacao gerenciadorRenovacao;
 
     @Autowired
     public EmprestimoService(EmprestimoRepository emprestimoRepository,
-            LivroRepository livroRepository, UsuarioService usuarioService,
-            LeitorRepository leitorRepository, ReservaRepository reservaRepository) {
+            UsuarioService usuarioService,
+            GerenciadorReserva gerenciadorReserva,
+            LivroRepository livroRepository,
+            LeitorRepository leitorRepository,
+            GerenciadorEmprestimoReserva gerenciadorEmprestimoReserva, GerenciadorRenovacao gerenciadorRenovacao) {
         this.emprestimoRepository = emprestimoRepository;
+        this.usuarioService = usuarioService;
+        this.gerenciadorReserva = gerenciadorReserva;
         this.livroRepository = livroRepository;
         this.leitorRepository = leitorRepository;
-        this.reservaRepository = reservaRepository;
-        this.usuarioService = usuarioService;
+        this.gerenciadorEmprestimoReserva = gerenciadorEmprestimoReserva;
+        this.gerenciadorRenovacao = gerenciadorRenovacao;
     }
 
     @Transactional
     public Emprestimo emprestarLivro(int livroId, int leitorId, String senha) {
-
         Livro livro = livroRepository.findById(livroId)
-                .orElseThrow(() -> new EntityNotFoundException("Livro não encontrado"));
-
+                .orElseThrow(() -> new LivroNaoEncontradoException("Livro não encontrado"));
         Leitor leitor = leitorRepository.findById(leitorId)
-                .orElseThrow(() -> new EntityNotFoundException("Leitor não encontrado"));
+                .orElseThrow(() -> new LeitorNaoEncontradoException("Leitor não encontrado"));
 
-        if (!usuarioService.verificarSenha(leitor.getUsuario().getId(), senha)) {
-            throw new AccessDeniedException("Senha incorreta");
-        }
+        validarEmprestimo(leitor, livro, senha);
 
-        if (leitor.getQuantidadeEmprestimosRestantes() == 0) {
-            throw new LimiteExcedidoException("Limite de empréstimos excedido para o leitor");
-        }
+        Reserva reserva = gerenciadorReserva.atualizarReservaSeExistente(leitor.getId(), livro);
 
-        // Verificar se o leitor já possui um empréstimo não devolvido para este livro
-        boolean emprestimoNaoDevolvidoExistente = livro.getEmprestimos().stream()
-                .anyMatch(emprestimo -> emprestimo.getLeitor().getId() == leitorId && !emprestimo.isDevolvido());
-
-        if (emprestimoNaoDevolvidoExistente) {
-            throw new IllegalStateException("Leitor já possui um empréstimo não devolvido para este livro");
-        }
-
-        // Verificar se o leitor possui uma reserva para este livro
-        Optional<Reserva> reservaOptional = livro.getReservas().stream()
-                .filter(reserva -> reserva.getLeitor().getId() == leitorId
-                        && reserva.getStatus() == StatusReserva.EM_ANDAMENTO)
-                .findFirst();
-
-        if (reservaOptional.isPresent()) {
-            // Marcar a reserva como atendida
-            Reserva reserva = reservaOptional.get();
-            reserva.setStatus(StatusReserva.ATENDIDA);
-
-            livro.emprestarLivro();
-
-            Emprestimo emprestimo = criarEmprestimo(livro, leitor);
-            emprestimo.setReserva(reserva);
-            reserva.setEmprestimo(emprestimo);
-
-            return emprestimoRepository.save(emprestimo);
-
-        } else {
-            if (livro.getNumeroCopiasDisponiveis() == 0) {
-                throw new LivroIndisponivelException("Livro não está disponível para empréstimo");
-            }
-
-            // Verificar a quantidade de reservas em andamento
-            long reservasEmAndamento = livro.getReservas().stream()
-                    .filter(reserva -> reserva.getStatus() == StatusReserva.EM_ANDAMENTO)
-                    .count();
-
-            if (reservasEmAndamento >= livro.getNumeroCopiasDisponiveis()) {
-                throw new LivroIndisponivelException(
-                        "Todas as cópias do livro estão reservadas e não estão disponíveis para empréstimo.");
-            }
-
+        if (reserva != null) {
             livro.emprestarLivro();
             livroRepository.save(livro);
-
-            // Criar e salvar o empréstimo
-            Emprestimo emprestimo = criarEmprestimo(livro, leitor);
+            Emprestimo emprestimo = new Emprestimo(leitor, livro, reserva);
+            reserva.setEmprestimo(emprestimo);
+            return emprestimoRepository.save(emprestimo);
+        } else {
+            validarDisponibilidadeParaEmprestimo(livro);
+            validarLivroNaoReservado(livro);
+            livro.emprestarLivro();
+            livroRepository.save(livro);
+            Emprestimo emprestimo = new Emprestimo(leitor, livro);
             return emprestimoRepository.save(emprestimo);
         }
     }
 
     @Transactional
     public Emprestimo renovarEmprestimo(int emprestimoId, String senha) {
-    
         Emprestimo emprestimo = emprestimoRepository.findById(emprestimoId)
-        .orElseThrow(() -> new EntityNotFoundException("Empréstimo não encontrado"));
+                .orElseThrow(() -> new EntityNotFoundException("Empréstimo não encontrado"));
 
-        // Verificar se a renovação está sendo solicitada na data limite do empréstimo
-        if (!emprestimo.getDataLimite().equals(LocalDate.now())) {
-            throw new DataRenovacaoException("A renovação só pode ser feita na data limite do empréstimo");
-        }
+        validarRenovacao(emprestimo, senha);
 
-        // Verificar se o número máximo de renovações foi atingido
-        if (emprestimo.getQuantidadeRenovacoesRestantes() == 0) {
-            throw new LimiteExcedidoException("Limite máximo de renovações atingido");
-        }
-
-        // Verificar se há reservas em espera para o livro
-        boolean reservasEmEsperaExistem = emprestimo.getLivro().getReservas().stream()
-                .anyMatch(reserva -> reserva.getStatus() == StatusReserva.EM_ESPERA);
-
-        if (reservasEmEsperaExistem) {
-            throw new ReservaEmEsperaException(
-                    "Não é possível renovar o empréstimo, pois há reservas em espera para este livro");
-        }
-
-        emprestimo.renovar();
+        gerenciadorRenovacao.renovar(emprestimo);
         return emprestimoRepository.save(emprestimo);
     }
 
@@ -154,54 +96,103 @@ public class EmprestimoService {
         Emprestimo emprestimo = emprestimoRepository.findById(emprestimoId)
                 .orElseThrow(() -> new EntityNotFoundException("Empréstimo não encontrado"));
 
-        if (!usuarioService.verificarSenha(emprestimo.getLeitor().getUsuario().getId(), senha)) {
-            throw new AccessDeniedException("Senha incorreta");
-        }
+        validarSenha(emprestimo.getLeitor().getUsuario().getId(), senha);
 
-        emprestimo.devolverLivro(LocalDate.now());
+        if (emprestimo.isDevolvido())
+            throw new EmprestimoJaDevolvidoException("Empréstimo já foi devolvido");
+        emprestimo.devolverLivro();
         emprestimoRepository.save(emprestimo);
 
         Livro livro = emprestimo.getLivro();
         livro.devolverLivro();
         livroRepository.save(livro);
-
-        // Verificar se há reservas em espera
-        Optional<Reserva> reservaEmEsperaMaisAntiga = livro.getReservas().stream()
-                .filter(reserva -> reserva.getStatus() == StatusReserva.EM_ESPERA)
-                .min(Comparator.comparing(Reserva::getDataCadastro));
-
-        // Se houver uma reserva em espera, atualizar o status e a dataLimite
-        if (reservaEmEsperaMaisAntiga.isPresent()) {
-            Reserva reserva = reservaEmEsperaMaisAntiga.get();
-            reserva.marcarComoEmAndamento();
-            reservaRepository.save(reserva);
-        }
+        gerenciadorReserva.ativarProximaReservaEmEspera(livro);
 
         return emprestimo;
     }
 
-    private Emprestimo criarEmprestimo(Livro livro, Leitor leitor) {
-        Emprestimo emprestimo = new Emprestimo();
-        emprestimo.setLivro(livro);
-        emprestimo.setLeitor(leitor);
-        emprestimo.setDataEmprestimo(LocalDate.now());
-        emprestimo.setDevolvido(false);
-        emprestimo.setDataLimite(LocalDate.now());
-        emprestimo.setMulta(0.0);
-        emprestimo.setValorBase(0.0);
-        emprestimo.setQuantidadeRenovacoes(0);
-        emprestimo.setValorTotal(0.0);
-        return emprestimo;
+    private void validarEmprestimo(Leitor leitor, Livro livro, String senha) {
+        validarSenha(leitor.getUsuario().getId(), senha);
+        validarEmprestimoNaoDevolvido(leitor, livro.getId());
+        validarLimiteEmprestimos(leitor);
     }
 
-    @Scheduled(cron = "0 0 0 * * ?") 
-    @Transactional
-    public void calcularValoresEmprestimos() {
-        List<Emprestimo> emprestimosNaoDevolvidos = emprestimoRepository.findByDevolvidoFalse();
+    private void validarRenovacao(Emprestimo emprestimo, String senha) {
+        validarSenha(emprestimo.getLeitor().getUsuario().getId(), senha);
+        validarEmprestimoDevolvido(emprestimo);
+        validarDataLimiteExcedida(emprestimo);
+        validarDataRenovacao(emprestimo);
+        validarReservasEmEspera(emprestimo.getLivro());
+    }
 
-        for (Emprestimo emprestimo : emprestimosNaoDevolvidos) {
-            emprestimo.calcularValorTotal();
-            emprestimoRepository.save(emprestimo);
+    private void validarDataLimiteExcedida(Emprestimo emprestimo) {
+        if (emprestimo.getDataLimite().isAfter(LocalDate.now())) {
+            throw new DataRenovacaoException(
+                    "A renovação não pode mais ser realizada! Data limite do empréstimo foi ultrapassada");
         }
     }
+
+    private void validarEmprestimoDevolvido(Emprestimo emprestimo) {
+        if (emprestimo.isDevolvido()) {
+            throw new EmprestimoJaDevolvidoException(
+                    "A renovação não pode mais ser realizada! O empreśtimo já foi devolvido");
+        }
+    }
+
+    private void validarLimiteEmprestimos(Leitor leitor) {
+        if (gerenciadorEmprestimoReserva.getQuantidadeEmprestimosRestantes(leitor.getEmprestimos()) == 0) {
+            throw new LimiteExcedidoException("Limite de empréstimos excedido para o leitor");
+        }
+    }
+
+    private void validarDataRenovacao(Emprestimo emprestimo) {
+        if (!emprestimo.getDataLimite().equals(LocalDate.now())) {
+            throw new DataRenovacaoException("A renovação só pode ser feita na data limite do empréstimo");
+        }
+    }
+
+    private void validarDisponibilidadeParaEmprestimo(Livro livro) {
+        if (livro.getNumeroCopiasDisponiveis() == 0) {
+            throw new LivroIndisponivelException("Livro não possui cópias para empréstimo");
+        }
+    }
+
+    private void validarLivroNaoReservado(Livro livro) {
+        long reservasEmAndamento = livro.getReservas().stream()
+                .filter(reserva -> reserva.getStatus() == StatusReserva.EM_ANDAMENTO)
+                .count();
+
+        if (reservasEmAndamento >= livro.getNumeroCopiasDisponiveis()) {
+            throw new LivroIndisponivelException(
+                    "Todas as cópias do livro estão reservadas e não estão disponíveis para empréstimo.");
+        }
+
+    }
+
+    private void validarReservasEmEspera(Livro livro) {
+        boolean reservasEmEsperaExistem = livro.getReservas().stream()
+                .anyMatch(reserva -> reserva.getStatus() == StatusReserva.EM_ESPERA);
+
+        if (reservasEmEsperaExistem) {
+            throw new ReservaEmEsperaException(
+                    "Não é possível renovar o empréstimo, pois há reservas em espera para este livro");
+        }
+    }
+
+    private void validarEmprestimoNaoDevolvido(Leitor leitor, int livroId) {
+        boolean emprestimoNaoDevolvidoExistente = leitor.getEmprestimos().stream()
+                .anyMatch(emprestimo -> emprestimo.getLivro().getId() == livroId && !emprestimo.isDevolvido());
+
+        if (emprestimoNaoDevolvidoExistente) {
+            throw new EmprestimoEmAndamentoExistenteException(
+                    "Leitor já possui um empréstimo não devolvido para este livro");
+        }
+    }
+
+    private void validarSenha(int idUsuario, String senha) {
+        if (!usuarioService.verificarSenha(idUsuario, senha)) {
+            throw new AccessDeniedException("Senha não reconhecida");
+        }
+    }
+
 }
